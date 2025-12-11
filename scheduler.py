@@ -1,38 +1,81 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
-import datetime
-from database import get_db
+# scheduler.py
+from datetime import datetime, timedelta
+import sqlite3
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 
-API_KEY = "YOUR_SMS_OR_WHATSAPP_API_KEY"
+# ---- UltraMSG Config ----
+ULTRAMSG_INSTANCE = "instance154956"
+ULTRAMSG_TOKEN = "mcmdpxw3e8sj7bpu"
 
-def check_policies():
-    today = str(datetime.date.today())
-    conn = get_db()
+
+# ------------------------------------------------------
+# Send WhatsApp Message
+# ------------------------------------------------------
+def send_whatsapp(phone, message):
+    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE}/messages/chat"
     
-    cursor = conn.execute("SELECT * FROM policy WHERE end_date=? AND status='Pending'", (today,))
-    data = cursor.fetchall()
+    payload = {
+        "token": ULTRAMSG_TOKEN,
+        "to": phone,
+        "body": message
+    }
 
-    for row in data:
-        name = row["name"]
-        contact = row["contact"]
+    try:
+        res = requests.post(url, data=payload).json()
+        print("UltraMSG Response:", res)
+        return res
+    except Exception as e:
+        print("Error sending WhatsApp:", e)
+        return {}
 
-        # ---- Example: SMS using Fast2SMS ----
-        msg = f"Dear {name}, your policy is due for renewal today. Please renew soon."
 
-        print("Sending SMS to:", contact)
+# ------------------------------------------------------
+# Main Policy Check Function (runs every minute)
+# ------------------------------------------------------
+def check_policies():
+    print("Running check_policies()...")
+    conn = sqlite3.connect("policy.db")
+    cur = conn.cursor()
 
-        # Send SMS (Fast2SMS example)
-        requests.get(f"https://www.fast2sms.com/dev/bulkV2?authorization={API_KEY}&message={msg}&language=english&route=q&numbers={contact}")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Mark as done
-        conn.execute("UPDATE policy SET status='Notified' WHERE id=?", (row["id"],))
-        conn.commit()
+    cur.execute("""
+        SELECT id, phone, message 
+        FROM reminders
+        WHERE status='pending' AND next_try <= ?
+    """, (now,))
 
+    rows = cur.fetchall()
+
+    for rid, phone, message in rows:
+        result = send_whatsapp(phone, message)
+
+        # UltraMSG success conditions
+        success = (
+            result.get("sent") == "true" or 
+            result.get("queue") == "added"
+        )
+
+        if success:
+            cur.execute("UPDATE reminders SET status='sent' WHERE id=?", (rid,))
+        else:
+            # Retry after 1 min
+            retry_time = datetime.now() + timedelta(minutes=1)
+            cur.execute(
+                "UPDATE reminders SET next_try=? WHERE id=?",
+                (retry_time.strftime("%Y-%m-%d %H:%M:%S"), rid)
+            )
+
+    conn.commit()
     conn.close()
 
-scheduler = BlockingScheduler()
-scheduler.add_job(check_policies, "interval", hours=24)
 
-print("Scheduler running...")
-
-scheduler.start()
+# ------------------------------------------------------
+# Scheduler Starter (ONLY runs when invoked)
+# ------------------------------------------------------
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(check_policies, "interval", minutes=1)
+    scheduler.start()
+    print("Scheduler started (running every 1 minute).")

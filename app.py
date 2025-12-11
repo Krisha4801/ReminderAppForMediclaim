@@ -1,9 +1,9 @@
 from flask import Flask, render_template, request
 from datetime import datetime, timedelta
-import time
 import sqlite3
 import requests
-import threading
+from apscheduler.schedulers.background import BackgroundScheduler
+from scheduler import check_policies,start_scheduler
 
 app = Flask(__name__)
 
@@ -12,32 +12,13 @@ ULTRAMSG_TOKEN = "mcmdpxw3e8sj7bpu"
 
 
 def send_whatsapp(number, message):
-    url = f"https://api.ultramsg.com/instance154956/messages/chat"
+    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE}/messages/chat"
     data = {
         "token": ULTRAMSG_TOKEN,
         "to": number,
         "body": message
     }
-    res = requests.post(url, data=data)
-    return res.json()
-
-
-def schedule_message(send_date, customer_no, holder_no, message):
-    def task():
-        now = datetime.now()
-        wait_seconds = (send_date - now).total_seconds()
-        if wait_seconds > 0:
-            threading.Timer(wait_seconds, send_reminders).start()
-
-    def send_reminders():
-        # Send to policy holder
-        send_whatsapp(holder_no, message)
-
-        # If customer's phone number is different, send to customer
-        if customer_no != holder_no:
-            send_whatsapp(customer_no, message)
-
-    threading.Thread(target=task).start()
+    return requests.post(url, data=data).json()
 
 
 @app.route("/")
@@ -55,11 +36,10 @@ def add_policy():
     expiry_date = request.form["expiry_date"]
     policy_number = request.form["policy_number"]
 
-
     conn = sqlite3.connect("policy.db")
     cur = conn.cursor()
 
-    # ----------- CREATE TABLES -----------
+    # Create tables
     cur.execute("""
         CREATE TABLE IF NOT EXISTS policy(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,98 +63,54 @@ def add_policy():
         )
     """)
 
-    # ----------- INSERT POLICY -----------
+    # Insert policy
     cur.execute("""
-    INSERT INTO policy (name, holder_no, customer_no, policy_number, type, amount, expiry_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO policy (name, holder_no, customer_no, policy_number, type, amount, expiry_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (name, holder_no, customer_no, policy_number, policy_type, amount, expiry_date))
 
+    # Build message
+    dt = datetime.strptime(expiry_date, "%Y-%m-%d")
+    formatted_date = dt.strftime("%d-%m-%Y")
 
-
-    # ----------- BUILD MESSAGE -----------
-    # Convert expiry_date to dd-mm-yyyy
-    date_obj = datetime.strptime(expiry_date, "%Y-%m-%d")
-    formatted_date = date_obj.strftime("%d-%m-%Y")
     if policy_type == "Term Plan":
-     ending_text = "Please pay premium."
+        ending_text = "Please pay premium."
     else:
-     ending_text = "Please renew."
-
+        ending_text = "Please renew."
 
     message = (
-    f"Reminder: Policy No. {policy_number} for {name} ({policy_type}) "
-    f"for INR {amount} expires on {expiry_date}. {ending_text}."
+        f"Reminder: Policy No. {policy_number} for {name} ({policy_type}) "
+        f"for INR {amount} expires on {formatted_date}. {ending_text}"
     )
 
-    # ----------- SCHEDULE FIRST ATTEMPT (1 MINUTE FROM NOW) -----------
+    # First attempt after 1 minute
     next_time = datetime.now() + timedelta(minutes=1)
-    next_time_str = next_time.strftime("%Y-%m-%d %H:%M:%S")
+    next_try = next_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    # ----------- ADD REMINDER FOR POLICY HOLDER -----------
+    # Add reminders
     cur.execute("""
-        INSERT INTO reminders(phone, message, next_try, status)
+        INSERT INTO reminders (phone, message, next_try, status)
         VALUES (?, ?, ?, 'pending')
-    """, (holder_no, message, next_time_str))
+    """, (holder_no, message, next_try))
 
-    # ----------- ADD REMINDER FOR CUSTOMER (if NOT the same number) -----------
     if customer_no != holder_no:
         cur.execute("""
-            INSERT INTO reminders(phone, message, next_try, status)
+            INSERT INTO reminders (phone, message, next_try, status)
             VALUES (?, ?, ?, 'pending')
-        """, (customer_no, message, next_time_str))
+        """, (customer_no, message, next_try))
 
     conn.commit()
     conn.close()
 
-    return "Policy saved. Reminder scheduled in 1 year. Thank You"
+    return "Policy saved. Reminder scheduled."
 
-def start_scheduler():
-    def scheduler():
-        while True:
-            conn = sqlite3.connect("policy.db")
-            cur = conn.cursor()
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            cur.execute("""
-                SELECT id, phone, message FROM reminders
-                WHERE status='pending' AND next_try <= ?
-            """, (now,))
-
-            rows = cur.fetchall()
-
-            for rid, phone, message in rows:
-               result = send_whatsapp(phone, message)
-
-               success = (
-                result.get("sent") == "true" or 
-                result.get("queue") == "added"
-               )
-
-               if success:
-                cur.execute("UPDATE reminders SET status='sent' WHERE id=?", (rid,))
-               else:
-                new_time = datetime.now() + timedelta(minutes=1)
-                cur.execute("UPDATE reminders SET next_try=? WHERE id=?",
-                    (new_time.strftime("%Y-%m-%d %H:%M:%S"), rid))
-
-            conn.commit()
-            conn.close()
-
-            time.sleep(30)  # check every 30 seconds
-
-    thread = threading.Thread(target=scheduler)
-    thread.daemon = True
-    thread.start()
-
+# START APSCHEDULER ONLY ONCE
+scheduler = BackgroundScheduler()
+scheduler.add_job(check_policies, "interval", minutes=1)
+scheduler.start()
 
 
 if __name__ == "__main__":
-    from werkzeug.serving import run_simple
-
-    def run_server():
-        start_scheduler()
-        run_simple("127.0.0.1", 5000, app, use_reloader=False)
-
-    run_server()
-
+    start_scheduler()
+    app.run(debug=True)
