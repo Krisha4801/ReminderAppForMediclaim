@@ -1,0 +1,162 @@
+/* Basic page layout */
+* { box-sizing: border-box; }
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f4f6f8;
+  color: #222;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+  max-width: 720px;
+  margin: 36px auto;
+  background: #ffffff;
+  padding: 26px;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+
+/* Heading */
+h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f1724;
+}
+
+/* Form layout */
+form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Full-width rows (for buttons or date) */
+form .full {
+  grid-column: 1 / -1;
+}
+
+/* Labels and inputs */
+label {
+  display: block;
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d6dbe1;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #5b9bd5;
+  box-shadow: 0 0 0 3px rgba(91,155,213,0.08);
+}
+
+/* Make labels + inputs span both columns for smaller screens */
+@media (max-width: 640px) {
+  form { grid-template-columns: 1fr; }
+}
+
+/* Small helper / note text */
+.small {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #1f6feb;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(31,111,235,0.18);
+  transition: transform .08s ease, box-shadow .12s ease, opacity .12s;
+}
+
+button:hover { transform: translateY(-1px); }
+button:active { transform: translateY(0); opacity: 0.95; }
+
+/* Secondary button style (if you add) */
+button.secondary {
+  background: #f3f4f6;
+  color: #111827;
+  box-shadow: none;
+}
+
+/* Form field wrappers for spacing */
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Align submit button to right on wide screens */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Table to list saved policies (if you add a listing page) */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.table thead th {
+  text-align: left;
+  padding: 10px 8px;
+  font-weight: 600;
+  background: #f8fafc;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.table tbody td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Status badge */
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.pending { background: #fff3cd; color: #7a5800; }
+.badge.notified { background: #d1fae5; color: #065f46; }
+
+/* Small subtle footer */
+.footer {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
