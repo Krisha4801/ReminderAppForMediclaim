@@ -5,6 +5,7 @@ from scheduler import check_policies, start_scheduler
 from flask import Flask, render_template, request, redirect, session, url_for
 from functools import wraps
 import secrets
+import os
 
 
 app = Flask(__name__)
@@ -190,7 +191,13 @@ def add_policy():
 # -------------------------------
 # Start scheduler ONCE
 # -------------------------------
+# if __name__ == "__main__":
+#     start_scheduler()
+#     app.run(debug=False, use_reloader=False)
+
+
 if __name__ == "__main__":
-    start_scheduler()
-    app.run(debug=False, use_reloader=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False,use_reloader=False,host="0.0.0.0", port=port)
+
 
