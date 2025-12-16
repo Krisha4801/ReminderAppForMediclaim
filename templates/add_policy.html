@@ -3,6 +3,19 @@
 <head>
     <title>Add Policy</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+     function handlePolicyType(select) {
+     const vehicleInput = document.querySelector('input[name="vehicle_number"]');
+
+     if (select.value === "Mediclaim" || select.value === "Term Plan") {
+        vehicleInput.value = "";
+        vehicleInput.disabled = true;
+     } else {
+        vehicleInput.disabled = false;
+     }
+}
+</script>
+
 </head>
 <body>
 
@@ -11,6 +24,7 @@
 
     <form action="/add_policy" method="POST">
 
+        <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
         <div class="field">
             <label>Name:</label>
             <input type="text" name="name" required>
@@ -23,7 +37,7 @@
 
         <div class="field">
             <label>Type:</label>
-            <select name="type" required>
+            <select name="type" required onchange="handlePolicyType(this)">
                 <option value="Two Wheeler">Two Wheeler</option>
                 <option value="Motor">Motor</option>
                 <option value="Mediclaim">Mediclaim</option>
@@ -32,8 +46,8 @@
         </div>
 
         <div class="field">
-            <label>Amount:</label>
-            <input type="number" name="amount" required>
+            <label>Vehicle Number:</label>
+            <input type="text" name="vehicle_number">
         </div>
 
         <div class="form-group">
@@ -46,8 +60,9 @@
             <input type="date" name="expiry_date" required>
         </div>
 
-        <div class="form-actions full">
-            <button type="submit">Add Policy</button>
+        <div class="form-actions full button-row">
+          <button type="submit">Add Policy</button>
+          <button type="button" onclick="location.href='/policies'">View Policies</button>
         </div>
 
     </form>

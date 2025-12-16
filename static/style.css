@@ -8,6 +8,7 @@ html, body {
   color: #222;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 30px;
 }
 
 /* Container */
@@ -33,6 +34,7 @@ form {
   display: grid;
   gap: 12px;
   grid-template-columns: 1fr 1fr;
+  font-size: 35px;
 }
 
 /* Full-width rows (for buttons or date) */
@@ -125,7 +127,7 @@ button.secondary {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
-  font-size: 14px;
+  font-size: 20px;
 }
 
 .table thead th {
@@ -159,4 +161,16 @@ button.secondary {
   font-size: 12px;
   color: #666;
   text-align: center;
+}
+
+.button-row {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.button-row button {
+    font-size: 18px;
+    padding: 10px 20px;
+    cursor: pointer;
 }
